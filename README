@@ -36,7 +36,7 @@ INSTALLATION
 
             Set(@Plugins, qw(RT::Extension::AttachmentZip));
 
-        or add RT::Extension::SideBySideView to your existing @Plugins line.
+        or add RT::Extension::AttachmentZip to your existing @Plugins line.
 
     Clear your mason cache
             rm -rf /opt/rt4/var/mason_data/obj
