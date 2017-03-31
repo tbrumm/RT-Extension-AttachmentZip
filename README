@@ -21,11 +21,8 @@ INSTALLATION
     make install
         May need root permissions
 
-    Until the new Callback "AfterAttachmentTitleBox" isn't in place, you have to change manuelly
-    the file: share/html/Ticket/Elements/ShowAttachments and the the line:
-    % $m->callback( %ARGS, CallbackName => 'AfterAttachmentTitleBox', TicketObj => $Ticket );
-    
-    Git Pull Request: https://github.com/bestpractical/rt/pull/214/files
+    You need at least (https://github.com/bestpractical/rt/commit/e5333f93a2a544b541cca662abcc06ac23d8785b) 
+    to get it working for now
 
     Edit your /opt/rt4/etc/RT_SiteConfig.pm
         If you are using RT 4.2 or greater, add this line:
