@@ -1,7 +1,7 @@
 <table width="100%"><tr><td align="right"><font size="-1">
-Download attachments as a zip archive |
+<%loc(Download attachments as a zip archive)%> |
 % foreach my $mode (qw(Current All)) {
-<a href="<%RT->Config->Get('WebPath')%>/Ticket/AttachmentZip/<%$mode%>/<%$Ticket->Id%>/Ticket_<%$Ticket->Id%>_attachments.zip"><%$mode%></a> |
+<a href="<%RT->Config->Get('WebPath')%>/Ticket/AttachmentZip/<%$mode%>/<%$Ticket->Id%>/Ticket_<%$Ticket->Id%>_attachments.zip"><%$loc(mode)%></a> |
 % }
 </font></td></tr></table>
 
