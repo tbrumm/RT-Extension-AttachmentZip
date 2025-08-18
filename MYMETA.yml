@@ -5,9 +5,9 @@ author:
 build_requires:
   ExtUtils::MakeMaker: '6.36'
 configure_requires:
-  ExtUtils::MakeMaker: '6.42'
+  ExtUtils::MakeMaker: '0'
 dynamic_config: 0
-generated_by: 'Module::Install version 0.93, CPAN::Meta::Converter version 2.142690'
+generated_by: 'Module::Install version 0.93, CPAN::Meta::Converter version 2.150010'
 license: unknown
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -20,3 +20,4 @@ no_index:
 requires:
   Archive::Zip: '0'
 version: '1.0'
+x_serialization_backend: 'CPAN::Meta::YAML version 0.018'

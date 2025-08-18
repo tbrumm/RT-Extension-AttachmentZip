@@ -1,6 +1,6 @@
 <%init>
 # grab ticket number from URL
-my ($mode,$ticket_no) = ($m->dhandler_arg =~ m/^((?:all|current))\/(\d+)\//i );
+my ($mode,$ticket_no) = ($m->dhandler_arg =~ m/^((?:all|latest versions))\/(\d+)\//i );
 
 # create ticket object
 my $Ticket = LoadTicket($ticket_no);
@@ -113,4 +113,9 @@ AutoFlush => 0
 <%once>
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS);
 use File::Temp qw( tempfile tempdir);
+
+# This seems to be necessary within RT for reasons unknown - if we wind up
+# dealing with a filename with anything but ASCII chars, we stand a good chance
+# of winding up with a corrupt zip.
+$Archive::Zip::UNICODE = 1;
 </%once>

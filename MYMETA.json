@@ -4,13 +4,13 @@
       "Richard G Harman Jr <rtx-attachmentszip+richard@richardharman.com>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Module::Install version 0.93, CPAN::Meta::Converter version 2.142690",
+   "generated_by" : "Module::Install version 0.93, CPAN::Meta::Converter version 2.150010",
    "license" : [
       "unknown"
    ],
    "meta-spec" : {
       "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
-      "version" : "2"
+      "version" : 2
    },
    "name" : "RT-Extension-AttachmentZip",
    "no_index" : {
@@ -27,7 +27,7 @@
       },
       "configure" : {
          "requires" : {
-            "ExtUtils::MakeMaker" : "6.42"
+            "ExtUtils::MakeMaker" : "0"
          }
       },
       "runtime" : {
@@ -37,5 +37,6 @@
       }
    },
    "release_status" : "stable",
-   "version" : "1.0"
+   "version" : "1.0",
+   "x_serialization_backend" : "JSON::PP version 4.06"
 }

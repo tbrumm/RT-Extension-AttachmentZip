@@ -1,5 +1,5 @@
 html/Ticket/AttachmentZip/dhandler
-html/Callbacks/AttachmentZip/Ticket/Elements/ShowAttachments/AfterAttachmentTitleBox
+html/Callbacks/AttachmentZip/Ticket/Elements/ShowAttachments/BeforeList
 inc/Module/AutoInstall.pm
 inc/Module/Install.pm
 inc/Module/Install/AutoInstall.pm
