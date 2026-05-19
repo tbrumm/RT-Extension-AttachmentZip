@@ -38,6 +38,10 @@ sudo rm -rf /opt/rt6/var/mason_data/obj/*
 sudo systemctl start apache2
 ```
 
+## Screenshot
+
+![RT-Extension-AttachmentZip in action](docs/screenshot.png)
+
 ## Usage
 
 Open any ticket that has attachments. Above the attachment list you will see:
