@@ -1,116 +1,117 @@
 <%init>
-# grab ticket number from URL
-my ($mode,$ticket_no) = ($m->dhandler_arg =~ m/^((?:all|current))\/(\d+)\//i );
+my ($mode, $ticket_no) = ($m->dhandler_arg =~ m{^((?:all|current))/(\d+)/}i);
+$m->abort(404) unless $mode && $ticket_no;
 
-# create ticket object
 my $Ticket = LoadTicket($ticket_no);
+$m->abort(403) unless $Ticket && $Ticket->id;
 
-# taken from FindAttachments
-my $Tickets;
-
-my %documents;
-my $attachments = RT::Attachments->new( $session{'CurrentUser'} );
-
-$attachments->Columns( qw( Id Filename ContentType Headers Subject Parent ContentEncoding ContentType TransactionId Created));
+my $attachments = RT::Attachments->new($session{'CurrentUser'});
+$attachments->Columns(qw(Id Filename ContentType ContentEncoding TransactionId Parent));
 
 my $transactions = $attachments->NewAlias('Transactions');
-
-$attachments->Join( ALIAS1 => 'main',
-                    FIELD1 => 'TransactionId',
-                    ALIAS2 => $transactions,
-                    FIELD2 => 'id' );
+$attachments->Join(
+    ALIAS1 => 'main',         FIELD1 => 'TransactionId',
+    ALIAS2 => $transactions,  FIELD2 => 'id',
+);
 
 my $tickets = $attachments->NewAlias('Tickets');
+$attachments->Join(
+    ALIAS1 => $transactions, FIELD1 => 'ObjectId',
+    ALIAS2 => $tickets,      FIELD2 => 'id',
+);
 
-    $attachments->Join( ALIAS1 => $transactions,
-                        FIELD1 => 'ObjectId',
-                        ALIAS2 => $tickets,
-                        FIELD2 => 'id' );
+$attachments->Limit(ALIAS => $transactions, FIELD => 'ObjectType', VALUE => 'RT::Ticket');
+$attachments->Limit(ALIAS => $tickets,      FIELD => 'EffectiveId', VALUE => $Ticket->id());
 
-    $attachments->Limit( ALIAS => $transactions,
-                         FIELD => 'ObjectType',
-                        VALUE => 'RT::Ticket');
-if ($Tickets) {
-    while ($Ticket = $Tickets->Next) {
-        $attachments->Limit( ALIAS => $tickets,
-                             FIELD => 'EffectiveId',
-                             VALUE => $Ticket->id() );
-    }
-} else {
-    $attachments->Limit( ALIAS => $tickets,
-                         FIELD => 'EffectiveId',
-                         VALUE => $Ticket->id() );
-}
-# ende
-
-# collect individual attached files in a hash of arrays
-# my $AttachObj = $m->comp('/Ticket/Elements/FindAttachments', Ticket => $Ticket);
-# Nach Umstellung mit Funktionen aus FindAttachments
-
-my $AttachObj = $attachments;
-
+# Collect: newest version first (unshift) keyed by raw filename bytes
 my %attached_files;
-
-while (my $attached_name = $AttachObj->Next() ) {
-  next unless ($attached_name->Filename());
-  unshift( @{ $attached_files{ $attached_name->Filename } }, $attached_name );
+while (my $att = $attachments->Next()) {
+    next unless $att->Filename();
+    unshift @{$attached_files{$att->Filename}}, $att;
 }
-my $tempdir = File::Temp->newdir( CLEANUP => 1 );
-my $zip = Archive::Zip->new();
-my ($zip_fh,$zip_name) = Archive::Zip::tempFile($tempdir);
-</%init>
 
-<%perl>
+my $tempdir = File::Temp->newdir(CLEANUP => 1);
+my $zip     = Archive::Zip->new();
+my ($zip_fh, $zip_name) = Archive::Zip::tempFile($tempdir);
+
 foreach my $name (keys %attached_files) {
-  foreach my $revision (@{$attached_files{$name}}) {
-    # temporary on-disk storage of files for zip
-    my $tempfile_fh = File::Temp->new(DIR => $tempdir, SUFFIX => ".tmp");
+    foreach my $revision (@{$attached_files{$name}}) {
 
-    # these objects go out of scope before the zipfile is written to disk,
-    # which would cause them to be deleted too early.  Let the tempdir
-    # CLEANUP take care of them instead.
-    $tempfile_fh->unlink_on_destroy(0);
-    my $tempfile_name = $tempfile_fh->filename;
-    print $tempfile_fh $revision->Content;
+        # --- filename encoding fix ---
+        # RT may return filenames as raw bytes (Latin-1/CP1252 from older tickets).
+        # We need a Perl unicode string — Archive::Zip 1.68+ calls encode_utf8()
+        # internally when bit 11 is set, so we must NOT pre-encode to bytes.
+        my $raw_name = $revision->Filename;
+        my $unicode_name;
+        if (Encode::is_utf8($raw_name)) {
+            $unicode_name = $raw_name;
+        } else {
+            eval { $unicode_name = Encode::decode('UTF-8', $raw_name, Encode::FB_CROAK) };
+            if ($@) {
+                # Fall back to Windows-1252 (superset of Latin-1)
+                $unicode_name = Encode::decode('cp1252', $raw_name, Encode::FB_DEFAULT);
+            }
+        }
 
-    # need to close the FH so that perl flushes output
-    close $tempfile_fh;
+        # Stage attachment content to a temp file
+        my $tempfile_fh = File::Temp->new(DIR => $tempdir, SUFFIX => '.tmp');
+        $tempfile_fh->unlink_on_destroy(0);
+        my $tempfile_name = $tempfile_fh->filename;
+        binmode $tempfile_fh;
+        my $content = $revision->Content;
+        # Force to raw bytes if RT returned a unicode string for binary content
+        $content = Encode::encode('UTF-8', $content) if Encode::is_utf8($content);
+        print $tempfile_fh $content;
+        close $tempfile_fh;
 
-    # add tempfile to zip as the original name from the attachment, with revision ID
-    my $member;
-    if ($mode =~ m/all/i) {
-      $member = $zip->addFile($tempfile_name,sprintf('ticket_%d/%d_%s',$Ticket->Id,$revision->Id,$revision->Filename));
-    } else {
-      $member = $zip->addFile($tempfile_name,sprintf('ticket_%d/%s',$Ticket->Id,$revision->Filename));
+        # Pass Perl unicode string — Archive::Zip encodes to UTF-8 itself (bit 11)
+        my $zip_path = $mode =~ m/all/i
+            ? sprintf('ticket_%d/%d_%s', $Ticket->Id, $revision->Id, $unicode_name)
+            : sprintf('ticket_%d/%s',    $Ticket->Id,                $unicode_name);
+
+        my $member = $zip->addFile($tempfile_name, $zip_path);
+        # Set bit 11 (0x0800) — ZIP UTF-8 filename flag (APPNOTE.TXT §4.4.4)
+        $member->{'bitFlag'} |= 0x0800;
+        $member->desiredCompressionMethod(COMPRESSION_DEFLATED);
+
+        last if $mode !~ m/all/i;
     }
-    $member->desiredCompressionMethod( COMPRESSION_DEFLATED );
-    last if ($mode !~ m/all/i);
-  }
 }
 
-if ( $zip->writeToFileHandle($zip_fh) == AZ_OK) {
-  # need to close the FH so that perl flushes output
-  close $zip_fh;
-  $r->content_type( "application/zip" );
-  $m->clear_buffer();
-  $m->out($m->file($zip_name));
-  $m->abort;
+if ($zip->writeToFileHandle($zip_fh) == AZ_OK) {
+    close $zip_fh;
+    my $dl_name = sprintf('Ticket_%d_attachments.zip', $Ticket->Id);
+    $r->content_type('application/zip');
+    $r->headers_out->{'Content-Disposition'} = qq{attachment; filename="$dl_name"};
+
+    # Stream zip file in binary chunks — same pattern as RT core Shredder dhandler
+    open my $read_fh, '<:raw', $zip_name
+        or $RT::Logger->error("AttachmentZip: cannot open zip $zip_name: $!")
+        and $m->abort(500);
+    $m->clear_buffer();
+    my $buf;
+    while (read $read_fh, $buf, 1024 * 1024) {
+        $m->out($buf);
+    }
+    close $read_fh;
+    $m->abort;
 } else {
-  close $zip_fh;
-  $RT::Logger->error("write error writing zip to $zip_name");
-  $r->content_type( "text/plain" );
-  $m->clear_buffer();
-  $m->out("Sorry, error creating zip.  Please contact your system administrator.");
-  $m->abort;
+    close $zip_fh;
+    $RT::Logger->error("AttachmentZip: failed writing zip to $zip_name");
+    $r->content_type('text/plain; charset=UTF-8');
+    $m->clear_buffer();
+    $m->out('Error creating zip file. Please contact your system administrator.');
+    $m->abort;
 }
 undef $tempdir;
-</%perl>
+</%init>
 
 <%attr>
 AutoFlush => 0
 </%attr>
 
 <%once>
-use Archive::Zip qw( :ERROR_CODES :CONSTANTS);
-use File::Temp qw( tempfile tempdir);
+use Archive::Zip qw(:ERROR_CODES :CONSTANTS);
+use File::Temp;
+use Encode ();
 </%once>

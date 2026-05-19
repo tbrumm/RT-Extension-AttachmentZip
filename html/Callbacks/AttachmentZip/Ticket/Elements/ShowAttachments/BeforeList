@@ -1,14 +1,16 @@
-<table width="100%"><tr><td align="right"><font size="-1">
-Download attachments as a zip archive |
+% # Skip during jQuery "Show all" AJAX reload — buttons already exist in the DOM
+% return if (RT::Interface::Web::RequestENV('HTTP_X_REQUESTED_WITH') // '') eq 'XMLHttpRequest';
+<div class="d-flex justify-content-end align-items-center mb-2 gap-2">
+  <span class="text-muted small"><% loc('Download attachments as ZIP') %>:</span>
 % foreach my $mode (qw(Current All)) {
-<a href="<%RT->Config->Get('WebPath')%>/Ticket/AttachmentZip/<%$mode%>/<%$Ticket->Id%>/Ticket_<%$Ticket->Id%>_attachments.zip"><%$mode%></a> |
+  <a href="<%RT->Config->Get('WebPath')%>/Ticket/AttachmentZip/<%$mode%>/<%$Ticket->Id%>/Ticket_<%$Ticket->Id%>_attachments.zip"
+     class="btn btn-sm btn-outline-secondary"
+     data-hx-boost="false">
+    <% loc($mode) %>
+  </a>
 % }
-</font></td></tr></table>
-
-<%init>
-</%init>
+</div>
 
 <%ARGS>
 $Ticket => undef
 </%ARGS>
-
